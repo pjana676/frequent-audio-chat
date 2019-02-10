@@ -1,0 +1,281 @@
+<!doctype html>
+<html>
+<head>
+    <title>Chat Room</title>
+    <style>
+        .chat
+        {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .chat li
+        {
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px dotted #B3A9A9;
+        }
+        .chat li.left .chat-body
+        {
+            margin-left: 60px;
+        }
+        .chat li.right .chat-body
+        {
+            margin-right: 60px;
+        }
+
+        .chat li .chat-body p
+        {
+            margin: 0;
+            color: #777777;
+        }
+        .panel .slidedown .glyphicon, .chat .glyphicon
+        {
+            margin-right: 5px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font: 13px Helvetica, Arial; }
+        form { background: #188; padding: 2px; position: fixed; bottom: 0; width: 90%; }
+        form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+        form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+        #messages { list-style-type: none; margin: 0; padding: 0; }
+        #messages li { padding: 5px 10px; }
+        #messages li:nth-child(odd) { background: #eee; }
+    </style>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+</head>
+<body>
+
+<div>
+    <div class="container" style="margin-top: 30px !important; ">
+        <!--add user-->
+        <!-- Modal -->
+        <div class="modal fade" id="userModal" role="dialog">
+            <div class="modal-dialog">
+
+                <!-- Modal content-->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Join Room</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row text-center">
+                            <p class="alert-msg"></p>
+                            <div class="row">
+                                <div class="col-xs-5 text-bold ">
+                                    Enter User Name
+                                </div>
+                                <div class="col-xs-5">
+                                    <input type="text" class="form-control" placeholder="Enter User Name" id="user_name">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-xs-5 text-bold">
+                                    Enter Password
+                                </div>
+                                <div class="col-xs-5">
+                                    <input type="password" class="form-control" placeholder="Enter Password" id="password">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-xs-10">
+                                    <button type="button" class="btn btn-success pull-right" id="submit_with_password">
+                                        Submit
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <!--#add user-->
+
+        <audio controls autoplay id="selfMedia"></audio>
+        <ul id="messages" class="chat"></ul>
+        <form action="">
+            <input id="sm" placeholder="Type a message" autocomplete="off" />
+            <a id="start-rec-btn" style="color: white">Start Recording</a>
+            <button>Send</button>
+        </form>
+
+    </div>
+</div>
+<script id="own-message" type="text/template">
+    <li id="{{_li_id}}" class="right clearfix">
+        <div class="chat-body clearfix">
+            <p>
+                {{body}}
+            </p>
+        </div>
+    </li>
+</script>
+<script src="https://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+
+<script type="text/javascript" charset="utf8" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+
+<script>
+    var baseUrl=location.origin
+    $(function(){
+
+        var recorder,
+                context,
+                mediaRecorder,
+                userInfo={},
+                socket= io().connect(location.origin);
+
+        try{
+            if(!$.cookie("session_credential") || !JSON.parse($.cookie("session_credential")).data){
+                $('#userModal').modal('show');
+            }else{
+                console.log('here')
+                userInfo=JSON.parse($.cookie("session_credential"))
+            }
+        }catch(e){
+            $('#userModal').modal('show');
+        }
+
+        $("#submit_with_password").click(function(e) {
+            if(!$('#user_name').val()){
+                alert('User Name is mandatory !!')
+                return false;
+            }
+            if(!$('#password').val()){
+                alert('password confirmation mismatch !!')
+                return false;
+            }
+            console.log('ll')
+            $.ajax({
+                url:baseUrl+"/api/auth/sign-up",
+                type:"POST",
+                dataType: 'json',
+                data:{
+                    "user_name":$('#user_name').val(),
+                    "password":$('#password').val()
+                },
+                success:function(data,status) {
+                    $('#userModal').modal('hide');
+                    alert(data.message)
+                    userInfo=data
+                    $.cookie("session_credential", JSON.stringify(data));
+                },
+                error: function(xhr, status, error) {
+                    alert(xhr.responseText);
+                }
+            });
+        })
+
+        $('form').submit(function(){
+            if(!userInfo.data){
+                alert('You are not an authorized user !!')
+                $('#userModal').modal('show');
+                return false;
+            }
+            socket.emit('send-message', {
+                "user_token":userInfo.data.token,
+                "msg":$('#sm').val()
+            });
+            $('#sm').val('');
+            return false;
+
+        });
+        socket.on('received-message', function(responseData){
+            console.log(responseData)
+            if(responseData.status_code!=200){
+                alert(responseData.msg)
+                $('#userModal').modal('show');
+                $.cookie("session_credential", null);
+            }else{
+                var template = $("#own-message").html();
+                template = template.replace("{{body}}", responseData.msg).replace("{{_li_id}}",($(".chat").children('li').length+1));
+                $(".chat").append(template);
+            }
+
+
+        });
+
+        $( "#start-rec-btn" ).mousedown(function() {
+            $(this).text('Recording')
+            close();
+            if (context) {
+                recorder.connect(context.destination);
+                return;
+            }
+
+            var session = {
+                audio: true,
+                video: false
+            };
+
+            navigator.getUserMedia(session, function (stream) {
+                window.localStream = stream;
+                //socket.emit("stream",stream);
+                /* The code could deployed*/
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.onstart = function(e) {
+                    window.chunks = [];
+                };
+                mediaRecorder.start();
+                mediaRecorder.ondataavailable = function(e) {
+                    window.chunks.push(e.data);
+                    var blob = new Blob(window.chunks, { 'type' : 'audio/ogg; codecs=opus' });
+                    socket.emit('stream', {
+                        "user_token":userInfo.data.token,
+                        "stream":blob
+                    });
+                };
+
+            }, function (e) {
+                console.log(e)
+                alert('Something went wrong !! DOMException, no longer works on insecure origins.')
+            });
+        });
+        $( "#start-rec-btn" ).mouseup(function() {
+            $(this).text('Start Recording')
+            if(window.localStream){
+                window.localStream.getTracks().forEach(function(track){
+                    track.stop();
+                })
+            }
+            if(mediaRecorder){
+                mediaRecorder.stop()
+            }
+            close();
+        });
+        function close(){
+            console.log('close');
+            if(recorder)
+                recorder.disconnect();
+        }
+        socket.on('BroadCastExceptMe',function(responseData){
+            //console.log(stream)
+            console.log(responseData)
+            if(responseData.status_code!=200){
+                alert(responseData.msg)
+                $('#userModal').modal('show');
+                $.cookie("session_credential", null);
+            }else{
+
+            }
+            var mediaElement = document.querySelector('#selfMedia')
+            mediaElement.src = window.URL.createObjectURL(new Blob([responseData.stream], { 'type' : 'audio/ogg; codecs=opus' }));
+        })
+
+        navigator.getUserMedia = navigator.getUserMedia ||
+                navigator.webkitGetUserMedia ||
+                navigator.mozGetUserMedia ||
+                navigator.msGetUserMedia;
+    })
+
+</script>
+</body>
+</html>

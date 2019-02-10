@@ -1,0 +1,42 @@
+{
+  "name": "frequent-audio-chat",
+  "version": "1.0.0",
+  "description": "frequent audio chat between two users or group",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pjana676/frequent-audio-chat.git"
+  },
+  "keywords": [
+    "audio-chat",
+    "chat",
+    "text-chat",
+    "message",
+    "message-group",
+    "group-message",
+    "chit-chat",
+    "Voice",
+    "Chat",
+    "Rooms",
+    "Online",
+    "Voice",
+    "Chat",
+    "Room",
+    "node",
+    "realtime",
+    "streaming",
+    "chat"
+  ],
+  "author": "pritam jana",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pjana676/frequent-audio-chat/issues"
+  },
+  "homepage": "https://github.com/pjana676/frequent-audio-chat#readme",
+  "dependencies": {
+    "socket.io": "1.7.2"
+  }
+}
